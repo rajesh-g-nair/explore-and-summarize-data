@@ -1,0 +1,1167 @@
+Exploratory Data Analysis of Prosper Loan Data by Rajesh Nair
+========================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using
+# in your analysis in this code chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk.
+# This prevents the code from displaying in the knitted HTML output.
+# You should set echo=FALSE for all code chunks in your file.
+
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+library(reshape2)
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+# Some of the fields names which had spaces were replaced with Undescore before
+# loading the data. The fields names which were changed are
+# 
+pld <- read.csv('C:/Rajesh/Data_science_R_programming/Final_Project/prosperLoanData.csv')
+```
+
+Prosper is a unique concept of peer-to-peer lending where the Lenders and
+Borrowers are enrolled members.
+
+The Borrowers list loan requests and Lenders invest in these listings requested
+by borrowers. Multiple Lenders can invest in a single listing. The Borrowers
+have Credit Grades associated with them which are AA, A, B, C, D, E and HR with
+AA being the best and HR being the worst. This gives Lenders an idea of the risk proportion of their investment.
+
+The following fields names were replaced by removing the spaces and Brackets
+with Underscore for easy reference of these fields in the R
+
+Original field names: ProsperRating (numeric), ProsperRating (Alpha), ListingCategory (numeric), TradesNeverDelinquent (percentage)
+
+Updated field names: ProsperRating_numeric, ProsperRating_Alpha, ListingCategory_numeric, TradesNeverDelinquent_percentage
+
+
+# Univariate Plots Section
+```{r echo=FALSE, Univariate_Plots}
+dim(pld)
+names(pld)
+#Replace all blank cells with NA
+pld[pld==""] <- NA
+table(pld$BorrowerState)
+ggplot(pld,aes(x=BorrowerState))+
+  geom_histogram()+
+  theme(axis.text.x = element_text(face="bold",  
+                           size=8, angle=45),
+          axis.text.y = element_text(face="bold",  
+                           size=8))
+
+```
+
+The Prosper Loan Data has 113937 Loan Records and there are 81 attributes for
+each record
+
+The Histogram on Borrower State shows that California has most number of
+Borrowers
+
+```{r echo=FALSE, CA_Dataset }
+# Dataset derived for the California State
+pldca <- subset(pld,BorrowerState=="CA")
+dim(pldca)
+summary(pldca)
+str(pldca)
+
+```
+
+The Dataset derived for the state of California has 14717 Loan Records. Around 1/10th (14717 Cases) of the Prosper loans are from CA. Hence we would focus our analysis on the state of CA to analyze and understand various aspects of Prosper loan
+
+In the data it is observed that the Home Ownership is indicated by attribute 
+IsBorroweHomeowner. In order to use it in Plots we will derive a new
+variable called HomeOwnership with Values "OwnHome" and "RentedHome"
+For the closed loans the Credit Grade is available in the "CreditGrade" column
+and for the Current loans the Credit Grade is available in "ProsperRating_Alpha"
+column. In order to do analysis on this variable we need to combine these 2
+columns and hence we have derived a new column "CreditGrade_Derived"
+
+```{r echo=FALSE, New_Derived_variables }
+# New Variable Derived for Home Ownership 
+pldca$HomeOwnership <- ifelse(pldca$IsBorrowerHomeowner == 'True',
+                              'OwnHome','RentedHome')
+pldca$CreditGrade_Derived <-pldca$CreditGrade
+pldca$CreditGrade_Derived[is.na(pldca$CreditGrade_Derived)] <- 
+  pldca$ProsperRating_Alpha[is.na(pldca$CreditGrade_Derived)]
+
+pldca$CreditGrade_Derived <- ordered(pldca$CreditGrade_Derived,
+                           levels=c("AA", "A","B",
+                                    "C","D",
+                                    "E","HR",
+                                    "NC", "NA"))                             
+pldca$CreditGrade_Derived <- factor(pldca$CreditGrade_Derived)
+
+```
+
+Based on my understanding from reading through the Prosper Website and by
+analyzing the Prosper Loan Dataset, the features which we would be considering 
+for our exploratory analysis are as below:   
+ClosedDate - If there is a date in this field then the Loan is Closed else it is Open    
+CreditGrade_Derived - This is the new field derived for the Credit Grade for open and closed loans    
+HomeOwnership - This field is Derived from IsBorrowerHomeowner field. If it has value True the Borrower has Own Home else he is staying in Rented home    
+Term - Tenure for which the Loan has been taken    
+LoanStatus - The current Status of the Loan    
+BorrowerRate - Rate of Interest at which the current Loan was Provided    
+LenderYield - The Annual Return on Investment for the Lender    
+BorrowerState - The State where the Borrower Resides. For our analysis we are focussing on the State of California    
+Occupation - The Occupation of the Borrower    
+EmploymentStatus - The Status of Employment of the Borrower    
+TradesNeverDelinquent_percentage - Percentage of Trades which was never Deliquent    
+DebtToIncomeRatio - The Ratio of Total Debt to Total Income of the Borrower                        
+IncomeRange - The Bucket in which the Borrower's Income belongs    
+StatedMonthlyIncome - The Borrower's Monthly Income   
+LoanOriginalAmount - The Loan amount provided to the Borrower   
+LP_GrossPrincipalLoss - The non-recovery of the Principal due to Defaulted / Charged off Loans. This is applicable only to Closed Loans    
+
+
+```{r echo=FALSE, Histogram_of_Credit_Grade_Derived }
+# Exploring the CreditGrade_Derived variable
+summary(pldca$CreditGrade_Derived)
+ggplot(pldca,aes(x=CreditGrade_Derived))+
+  geom_histogram()+
+  theme(axis.text.x = element_text(face="bold",  
+                           size=10, angle=45),
+          axis.text.y = element_text(face="bold",  
+                           size=10))
+```
+
+Credit Grades Range from AA to HR, AA being the Best rating and HR being the least rating. There are 18 records which don't have any Rating and 14 records with Rating as NC which doesn't seem to be a Valid rating as it is not appearing in the Prosper website
+
+We see that the Distribution is a normal distribution with Less number of borrowers in AA and HR Category and maximum borrowers in the C Category. This is quite intuitive as there would be lesser number of population having highest rating of AA and hence the number of people applying for loan in this category will be less as compared to the other categories. The risk is highest for people having HR rating and there might be large number of loan applications getting rejected. Hence the population for the HR category is less 
+
+```{r echo=FALSE, Histogram_of_Income_range }
+# Exploring the IncomeRange variable
+
+pldca$IncomeRange <- ordered(pldca$IncomeRange,
+                           levels=c("Not displayed", "Not employed","$0",
+                                    "$1-24,999","$25,000-49,999",
+                                    "$50,000-74,999","$75,000-99,999",
+                                    "$100,000+"))                             
+summary(pldca$IncomeRange)
+ggplot(pldca,aes(x=IncomeRange))+
+  geom_histogram()+
+  theme(axis.text.x = element_text(face="bold",  
+                           size=10, angle=45),
+          axis.text.y = element_text(face="bold",  
+                           size=10))
+```
+
+As expected the lower Income groups comprising Not Employed, $0 and $1-24,999  are lower in number as the loan application for most of them might not be getting accepted. There are a few cases for whom the Income is not displayed. They might be for people who do not want their income to be revealed to the Public
+
+```{r echo=FALSE, Histogram_of_Term }
+# Exploring the term variable
+summary(pldca$Term)
+table(pldca$Term)
+ggplot(pldca,aes(x=Term),binwidth=6)+
+  geom_histogram(binwidth=1)
+
+```
+
+There are only 3 possible values which the Term takes 12, 36 and 60. Most Loans have the Term as 36. Then comes the Term 60 and there are only a few cases with term 12
+
+```{r echo=FALSE, Histogram_of_Loan_Status }
+# Exploring the Loan Status variable
+summary(pldca$LoanStatus)
+levels(pldca$LoanStatus)
+ggplot(pldca,aes(x=LoanStatus))+
+  geom_histogram()+
+  theme(axis.text.x = element_text(face="bold",  
+                           size=10, angle=45),
+          axis.text.y = element_text(face="bold",  
+                           size=10))
+```
+
+Most of the Loans are in Current Status. Almost 50% of the total Loans data  available is in Current Status. A good percentage of Loans around 10% of the total loans has been Charged off. Around 5% of the total Loans have been Defaulted
+
+```{r echo=FALSE, Histogram_of_Borrower_Rate }
+# Exploring the Borrower Rate variable
+summary(pldca$BorrowerRate)
+ggplot(data=pldca,aes(x=BorrowerRate))+
+  geom_histogram(binwidth=0.01)+
+  scale_x_continuous(limits=c(0,0.36),breaks=seq(0,0.36,0.05))
+
+```
+
+The distribution is approximately a normal distribution with lesser cases near the tails. There are a few cases near the 0 rate which might be an outlier. There are a few peaks near 0.3 which shows that a category of people might be getting loan at a very high rate as compared to the rest
+
+```{r echo=FALSE, Histogram_of_Lender_Yield }
+
+# Exploring the Lender Yield variable
+summary(pldca$LenderYield)
+ggplot(data=pldca,aes(x=LenderYield))+
+  geom_histogram(binwidth=0.01)+
+  scale_x_continuous(limits=c(0,0.34),breaks=seq(0,0.34,0.05))
+
+```
+
+The distribution of Lender Yield is similar to the BorrowerRate distribution with similar characteristics 
+
+```{r echo=FALSE, Histogram_of_Occupation }
+# Exploring the Occupation variable
+summary(pldca$Occupation)
+ggplot(data=pldca,aes(x=Occupation))+
+  geom_histogram()+
+  theme(axis.text.x = element_text(face="bold",  
+                           size=8, angle=90),
+          axis.text.y = element_text(face="bold",  
+                           size=10))
+```
+
+More than 30% of the people are in Other category and almost 15% have been classified as Professional. Besides these the categories such as Accountant / CPA,  Administrative Assistant, Analyst, Clerical, Computer Programmer, Executive, Sales Commission and teacher are more as compared to other professions
+
+```{r echo=FALSE, Histogram_of_Employment_Status }
+# Exploring the Employment Status variable
+summary(pld$EmploymentStatus)
+ggplot(data=pldca,aes(x=EmploymentStatus))+
+  geom_histogram()+
+  theme(axis.text.x = element_text(face="bold",  
+                           size=12, angle=45),
+          axis.text.y = element_text(face="bold",  
+                           size=12))
+```
+
+More than 30% of the people are in Other category and almost 15% have been classified as Professional. Besides these the categories such as Accountant / CPA,  Administrative Assistant, Analyst, Clerical, Computer Programmer, Executive, Sales Commission and teacher are more as compared to other professions
+
+```{r echo=FALSE, Histogram_of_Loan_Original_Amount }
+# Exploring the  LoanOriginalAmount
+summary(pld$LoanOriginalAmount)
+ggplot(pld,aes(x=LoanOriginalAmount))+
+  geom_histogram(binwidth=1000)+
+  scale_x_continuous(limits=c(0,35000),breaks=seq(0,35000,5000))+
+  theme(axis.text.x = element_text(face="bold",  
+                           size=10, angle=45),
+          axis.text.y = element_text(face="bold",  
+                           size=10))
+ggplot(pld,aes(x=LoanOriginalAmount))+
+  geom_histogram(binwidth=100)+
+  scale_x_continuous(limits=c(0,35000),breaks=seq(0,35000,500))+
+  theme(axis.text.x = element_text(face="bold",  
+                           size=10, angle=90),
+          axis.text.y = element_text(face="bold",  
+                           size=10))
+
+```
+
+There are more cases between 1000 and 5000 gradually decreasing after 5000 as the loan amount increases. At 5000, 10000, 15000, 20000, 25000 the number of cases are more than the other nearby values   
+
+By decreasing the binwidth we see that there are more cases for 4000 followed by 15000 then followed by 10000 and then 5000. Most of the cases are in multiples of 1000. We also see that till 5000 there are few cases having values which are not in multiples of 1000, but after 15000 number of such cases are almost zero
+
+```{r echo=FALSE, Histogram_of_GrossPrincipalLoss }
+
+# Getting a summary of LP_GrossPrincipalLoss
+summary(pldca$LP_GrossPrincipalLoss)
+ggplot(pld,aes(x=LP_GrossPrincipalLoss))+
+  geom_histogram()+
+  scale_x_continuous(limits=c(0,25000),breaks=seq(0,25000,1000))+
+  theme(axis.text.x = element_text(face="bold",  
+                           size=10, angle=45),
+          axis.text.y = element_text(face="bold",  
+                           size=10))
+
+ggplot(pldca,aes(x=LP_GrossPrincipalLoss))+
+  geom_histogram()+
+  scale_x_continuous(limits=c(1,25001),breaks=seq(1,25001,1000))+
+  theme(axis.text.x = element_text(face="bold",  
+                           size=10, angle=45),
+          axis.text.y = element_text(face="bold",  
+                           size=10))
+
+```
+
+The Gross Principal Loss is zero for more than the first 3 quantiles. Hence we see a big tall bar at zero and which makes sense as it signifies that most of the loans are getting repaid. The distribution is exponential with more cases near zero and almost zero for higher values.   
+
+The second plot ignores cases with Gross Principal Loss Zero. In this plot we see that there are more cases having Gross Principal Loss upto $ 4000 and there is a gradual decline in the cases for higher amounts. Also we see that after 15000 the number of cases are very few.
+
+```{r echo=FALSE, Histogram_of_TradesNeverDelinquent_percentage }
+
+summary(pldca$TradesNeverDelinquent_percentage)
+ggplot(data=pldca,aes(x=TradesNeverDelinquent_percentage))+
+  geom_histogram(binwidth=0.01)+
+  scale_x_continuous(limits=c(0,1.01),breaks=seq(0,1.01,0.05))
+
+ggplot(data=pldca,aes(x=TradesNeverDelinquent_percentage))+
+  geom_histogram(binwidth=0.01)+
+  scale_x_continuous(limits=c(0,0.99),breaks=seq(0,0.99,0.05))
+
+```
+
+Almost 1/3rd of the cases never had delinquent trades. There are only a few cases with delinquent trades more than 50% of the times.   
+
+The second plot ignores cases which had delinquent trade less than one percent and gives a more better understanding of the trades which were delinquent atleast 1 percent. Here we see a gradual increase from 0 to 0.99 peaking at around 0.95
+
+```{r echo=FALSE, Histogram_of_DebtToIncomeRatio }
+
+summary(pldca$DebtToIncomeRatio)
+ggplot(data=pldca,aes(x=DebtToIncomeRatio))+
+  geom_histogram(binwidth=0.05)+
+  scale_x_continuous(limits=c(0,1),breaks=seq(0,1,0.1))
+
+```
+
+The Debt to income ratio increases steeply and peaks at 0.15 and then decreases  gradually. The plot also shows that almost 50% of the population have 20% in Debt as compared to their income and 75% of the population have Debt of 29% or less as compared to their income
+
+```{r echo=FALSE, Histogram_of_HomeOwnership }
+
+ggplot(data=pldca,aes(x=HomeOwnership))+
+  geom_bar()+
+  scale_y_continuous(limits=c(0,10000),breaks=seq(0,10000,500))
+
+```
+
+The number of Own Home borrowers is around 6000 and the number of Rented home borrowers is around 9000. There are about 33% more Rented Home borrowers as  compared to Own Home borrowers
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+
+The Prosper Loan Dataset has 113937 observations of 81 variables. We are focusing on the state of Califoria for our analysis   
+
+The state of Caliornia has 14717 observations
+
+### What is/are the main feature(s) of interest in your dataset?
+
+The main features that are of my interest in the dataset are   
+Credit Grade   
+ProsperRating_Alpha   
+IsBorrowerHomeowner   
+BorrowerRate   
+LenderYield   
+BorrowerState   
+TradesNeverDelinquent_percentage      
+LP_GrossPrincipalLoss   
+LoanOriginalAmount   
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+
+The other features that will support the investigation are   
+ClosedDate   
+Term   
+LoanStatus   
+Occupation          
+EmploymentStatus    
+DebtToIncomeRatio   
+IncomeRange   
+
+
+### Did you create any new variables from existing variables in the dataset?
+
+I created 2 new variables CreditGrade_Derived and HomeOwnership   
+
+CreditGrade_Derived - I found that for the Closed Loans the CreditGrade field is having values and for the Open Loans ProsperRating_Alpha has values. The CreditGrade_Derived is derived from CreditGrade and ProsperRating_Alpha fields
+
+HomeOwnership - IsBorrowerHomeowner field is boolean field taking values as 'True' and 'False'. In order to use it in the plots we have derived this new variable which is updated with 'OwnHome' if this field is 'True' and updated with 'RentedHome' if this field is 'False'
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+
+There were no unusual distributions. The fields LP_GrossPrincipalLoss has zero for many cases and TradesNeverDelinquent_percentage has 100 for many cases. So,  we have ignored these cases and have plotted the histogram for these fields to better understand their distribution
+
+# Bivariate Plots Section
+
+```{r echo=FALSE, Bivariate_Plots}
+
+ggplot(data=pldca,aes(x=CreditGrade_Derived,y=BorrowerRate))+
+  geom_boxplot(aes(colour=CreditGrade_Derived))
+
+```
+
+The first 3 quantiles of Borrower Rate for Credit grade AA is less than 10%. There are a few outliers which are greater than 10%. The median is gradually increasing from Credit Grade AA to HR. Credit Grades NC and NA are cases for which the Credit Grade is not defined and hence can be ignored. We also see that for HR the first quantile itself is just below the 30% mark. The median and third quantile are almost at the same level above 30% mark. The outliers for HR rating are data points below 25% mark
+
+```{r echo=FALSE, Histogram_BorrowerRate_facetwrap_CreditGrade}
+
+ggplot(data=pldca,aes(x=BorrowerRate))+
+  geom_histogram(binwidth=0.01)+
+  facet_wrap(~CreditGrade_Derived,3)
+
+```
+
+This plot supports the above box plot and shows that most of the AA cases are  near the 10% mark and is gradually increasing as the credit rating decreases and  for HR rating most of the cases are above the 30% mark
+
+```{r echo=FALSE, LenderYield_CreditGrade}
+
+ggplot(data=pldca,aes(x=CreditGrade_Derived,y=LenderYield))+
+  geom_boxplot(aes(colour=CreditGrade_Derived))
+  
+
+ggplot(data=pldca,aes(x=LenderYield))+
+  geom_histogram(binwidth=0.01)+
+  facet_wrap(~CreditGrade_Derived,3)
+
+
+```
+
+The plot for Lender Yield is similar to the Borrower rate. The lender Yield for AA rating is just below 10% mark for the first 3 quantiles. The median is gradually increasing as the Credit Grade decreases. For the HR rating the first quantile is below the 30% mark and the median and third quantile are just above  the 30% mark and almost at the same level
+
+```{r echo=FALSE, LoanStatus_CreditGrade}
+
+ggplot(data=pldca,aes(x=CreditGrade_Derived))+
+  geom_histogram()+
+  facet_wrap(~LoanStatus,5)
+
+ggplot(data=subset(pldca,!is.na(pldca$ClosedDate)),
+       aes(x=CreditGrade_Derived))+
+  geom_histogram()+
+  facet_wrap(~LoanStatus)
+
+```
+
+The first Plot is histogram of Credit Grade facet wrapped over the Loan Status.  We have considered both in-progress Loans and Completed Loans. We see that most of the Loans are current followed by Completed and then the Charged off and then defaulted and then Loans in different Past due buckets. The Past due cases are very few.
+
+The second Plot is histogram of Credit Grade facet wrapped over the Loan Status only for the Completed cases. We see that there is a significant number of cases which have been charged off and most of them are from D, E and HR Credit Grade. Similarly, there are many defaulted cases and most of the defaulted cases are  also from the D, E and HR Credit Grade. The charged off cases and the Defaulted  cases are increasing from AA to HR
+
+```{r echo=FALSE, Homeownership_CreditGrade}
+
+ggplot(data=pldca,aes(x=CreditGrade_Derived))+
+  geom_histogram()+
+  facet_wrap(~HomeOwnership)
+
+```
+
+The number of cases are more for the higher Credit Grades (AA, A, B and C) for Owned Home cases as compared to the lower Credit Grades (D, E and HR) whereas for the Rented Home cases it is gradually increasing from AA to C and then gradually decreases from D to HR. Except for the Credit Grade AA and A there are more number of cases for Rented Home category as compared to Owned home category
+
+```{r echo=FALSE, Homeownership_TradesNeverDelinquentpercent}
+
+ggplot(data=pldca,aes(x=TradesNeverDelinquent_percentage))+
+  geom_freqpoly(aes(colour=HomeOwnership),binwidth=0.01)
+
+ggplot(data=pldca,aes(x=TradesNeverDelinquent_percentage))+
+  geom_freqpoly(aes(colour=HomeOwnership),binwidth=0.01)+
+  scale_x_continuous(limits=c(0,0.99),breaks=seq(0,0.99,0.1))
+
+```
+
+We see that more trades are delinquent for Rented Home Borrowers as compared to the Own Home Borrowers. Since most of the Trades are non delinquent, removing the data points for TradesNeverDelinquent_percentage of 1 and analyzing the rest of the data points we see that for most of the cases the Rented Home Borrowers have more delinquencies as compared to Own home Borrowers. The Own Home Borrowers have higher number only for a small range of 0.95 to 0.99
+
+```{r echo=FALSE, Homeownership_DebtToIncomeRatio}
+
+ggplot(data=pldca,aes(x=DebtToIncomeRatio))+
+  geom_freqpoly(aes(colour=HomeOwnership),binwidth=0.01)+
+  scale_x_continuous(limits=c(0,1),breaks=seq(0,1,0.1))
+
+```
+
+Though the lines are almost similar, it seems that Rented home borrowers have a  better Debt to Income ratio than Own Home Borrowers as there are more rented home borrowers with the ratio less than 0.5 and after 0.5 both the lines are almost touching each other
+
+```{r echo=FALSE, scatterplot_occupation_TradesNeverDelinquent}
+
+ggplot(data=pldca,aes(x=Occupation,y=TradesNeverDelinquent_percentage))+
+  geom_point(alpha=0.05,colour='blue')+
+  ylab("Percentage of Trades never Deliquent")+
+  theme(axis.text.x = element_text(face="bold",  
+                           size=8, angle=90),
+          axis.text.y = element_text(face="bold",  
+                           size=10))
+
+```
+
+The Occupations "Other" and "Professional" have the most number of delinquent  trades.    
+
+Following are the other occupations that have more delinquencies    
+Accountant / CPA   
+Administrative Assistant   
+Analyst   
+Civil Service   
+Clerical   
+Computer Programmer   
+Construction   
+Executive   
+Retail Management   
+Sales - Commission   
+Sales - Retail   
+Teacher   
+Skilled Labour   
+
+Following occupations have comparitively less deliquencies   
+Car Dealer   
+Chemist   
+Dentist   
+Engineer - Chemical   
+Fireman   
+Flight Attendant   
+Homemaker   
+Investor   
+Judge   
+Landscaping   
+Military Officer   
+Nurse's Aide   
+Nurse(LPN)   
+Pharmacist   
+Pilot - Private / Commercial   
+Principal   
+Professor   
+Psychologist   
+Religious   
+All Student Categories   
+Teacher's Aide
+Tradesman - Carpenter
+Tradesman - Electrician
+Tradesman - Plumber
+
+Surprisingly Teacher and Civil Service professionals also have higher number of delinquencies   
+
+It is possible that the Occupations having lesser delinquencies may be due to less number of people with those occupations as compared to others
+
+```{r echo=FALSE, scatterplot_MonthlyIncome_Loan_Amount}
+summary(pldca$StatedMonthlyIncome)
+
+ggplot(pldca,aes(x=StatedMonthlyIncome, y=LoanOriginalAmount))+
+  xlim(quantile(pldca$StatedMonthlyIncome,0.05), 
+       quantile(pldca$StatedMonthlyIncome,0.95))+
+  geom_point(alpha=0.05)+
+  geom_smooth(method = 'lm', color= 'red')
+
+cor.test(pldca$StatedMonthlyIncome,pldca$LoanOriginalAmount)
+
+```
+
+Many people have not disclosed their income and some of the borrowers are retired or homemakers so we will ignore the lower 5% cases and there are very high income people so we will ignore the higher 5% cases for this plot. The correlation coefficient is 0.208 which suggests that the correlation is not meaningful. But, we see that the regression line is gradually increasing which is due to variation in the upper side of the Loan amount. The Loan amount for lower income group is more concentrated on the lower side of the regression line whereas for higher Income group the data is more dispersed and evenly distributed above and below the regression line. This might be because higher income group might be having Loan eligibility for higher amount whereas the eligibility for lower income group it might be less and the higher income group inspite being eligible for higher loan amounts many are applying for much less amount than their eligibility. Also, we see that certain loan amounts are more popular. The Loan amounts of 4000 and 5000 is more popular among low income groups. The loan amount of 10000 is popular among people having income above 2500. The loan amount of 15000 is popular among people having income above 4000. The loan amounts of 15000, 20000 and 25000 are more popular than other amounts among people having income above 10000 
+
+```{r echo=FALSE, scatterplot_MonthlyIncome_DebttoIncomeRatio}
+
+ggplot(data=pldca,aes(x=StatedMonthlyIncome, y=DebtToIncomeRatio))+
+  xlim(quantile(pldca$StatedMonthlyIncome,0.05), 
+       quantile(pldca$StatedMonthlyIncome,0.95))+
+  ylim(0, 1)+
+  geom_point(alpha=0.05)+
+  geom_smooth(method = 'lm', color= 'red')
+
+cor.test(pldca$StatedMonthlyIncome,pldca$DebtToIncomeRatio)
+
+```
+
+We will ignore the lower 5% cases and the higher 5% cases for this plot as well. The correlation coefficient is - 0.127 which suggests that the correlation is not meaningful. But, we see that the regression line is gradually decreasing which is because the 2 extremes are more wider for lower income group and are narrower for the higher income group and most people in the higher income group are below 0.25 whereas for the lower income group there are many cases between 0.25 and 0.5 
+
+```{r echo=FALSE, scatterplot_LoanAmount_DebttoIncomeRatio}
+
+ggplot(data=pldca,aes(x=LoanOriginalAmount, y=DebtToIncomeRatio))+
+  ylim(0, 1)+
+  geom_point(alpha=0.05)+
+  geom_smooth(method = 'lm', color= 'red')
+
+cor.test(pldca$LoanOriginalAmount,pldca$DebtToIncomeRatio)
+
+```
+
+The correlation coefficient is 0.027 which suggests that the correlation is not meaningful. The regression line is almost parallel to the x-axis which suggests  that the average DebtToIncomeRatio across all Loan amounts is almost same at  around 0.25
+
+```{r echo=FALSE, scatterplot_LenderYield_DebttoIncomeRatio}
+
+ggplot(data=pldca,aes(x=LenderYield, y=DebtToIncomeRatio))+
+  ylim(0, 1)+
+  geom_point(alpha=0.05)+
+  geom_smooth(method = 'lm', color= 'red')
+
+cor.test(pldca$LenderYield,pldca$DebtToIncomeRatio)
+
+```
+
+The correlation coefficient is 0.054 which suggests that the correlation is not meaningful. The regression line is gradually increasing. The DebtToIncomeRatio is more dispersed for higher LenderYield and the 2 extremes are more wider for higher LenderYield and is narrower for the lower LenderYield
+
+```{r echo=FALSE, scatterplot_TradesNeverDelinquentPctg_DebttoIncomeRatio}
+
+ggplot(data=pldca,aes(x=TradesNeverDelinquent_percentage, y=DebtToIncomeRatio))+
+  ylim(0, 1)+
+  geom_point(alpha=0.05)+
+  geom_smooth(method = 'lm', color= 'red')
+
+cor.test(pldca$TradesNeverDelinquent_percentage,pldca$DebtToIncomeRatio)
+
+```
+The correlation coefficient is 0.050 which suggests that the correlation is not meaningful. The regression line is gradually increasing. The DebtToIncomeRatio is more dispersed for higher values of TradesNeverDelinquent_percentage and the 2 extremes are more wider for higher values of TradesNeverDelinquent_percentage and is narrower for the lower values of TradesNeverDelinquent_percentage. There are more data points for higher values of TradesNeverDelinquent_percentage as compared to the lower values
+
+```{r echo=FALSE, scatterplot_MonthlyIncome_LenderYield}
+
+ggplot(data=pldca,aes(x=StatedMonthlyIncome, y=LenderYield))+
+  xlim(quantile(pldca$StatedMonthlyIncome,0.05), 
+       quantile(pldca$StatedMonthlyIncome,0.95))+
+  geom_point(alpha=0.05)+
+  geom_smooth(method = 'lm', color= 'red')
+
+cor.test(pldca$StatedMonthlyIncome,pldca$LenderYield)
+
+```
+
+The correlation coefficient is 0.107 which suggests that the correlation is not meaningful. The regression line is gradually decreasing. The LenderYield is dispersed and the 2 extremes are wide. There are more data points for lower values of StatedMonthlyIncome
+
+```{r echo=FALSE, scatterplot_MonthlyIncome_TradesNeverDelinquent}
+
+ggplot(data=pldca,aes(x=StatedMonthlyIncome, 
+                      y=TradesNeverDelinquent_percentage))+
+  xlim(quantile(pldca$StatedMonthlyIncome,0.05), 
+       quantile(pldca$StatedMonthlyIncome,0.95))+
+  geom_point(alpha=0.05)+
+  geom_smooth(method = 'lm', color= 'red')
+
+cor.test(pldca$StatedMonthlyIncome,pldca$TradesNeverDelinquent_percentage)
+
+```
+The correlation coefficient is 0.061 which suggests that the correlation is not meaningful. The regression line is gradually increasing. The TradesNeverDelinquent_percentage is more dispersed for the lower income group with the 2 extremes being wider than for the higher income group where the 2 extremes are narrower. Though there is no strong correlation it seems that the Delinquency is less for the higher income group
+
+```{r echo=FALSE, scatterplot_BorrowerRate_LenderYield}
+
+ggplot(data=pldca,aes(x=BorrowerRate, y=LenderYield))+
+  geom_point(alpha=0.05)+
+  geom_smooth(method = 'lm', color= 'red')
+
+cor.test(pldca$BorrowerRate,pldca$LenderYield)
+
+```
+
+The correlation coefficient is 0.999 which suggests that the correlation is very Strong. The Lender Yield  increases with increase in Borrower Rate 
+
+```{r echo=FALSE, scatterplot_LoanOriginalAmount_LenderYield}
+
+ggplot(data=pldca,aes(x=LoanOriginalAmount, y=LenderYield))+
+  geom_point(alpha=0.05)+
+  scale_x_continuous(limits=c(0,35000),breaks= seq(0,35000,5000))+
+  geom_smooth(method = 'lm', color= 'red')
+
+cor.test(pldca$LoanOriginalAmount,pldca$LenderYield)
+
+```
+
+The correlation coefficient is -0.346 which suggests that the correlation is weak. The LenderYield decreases when the LoanOriginalAmount increases.
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+
+The first 3 quantiles of Lender Yield and Borrower Rate for Credit grade AA is less than 10%. The median is gradually increasing from Credit Grade AA to HR. We also see that for HR the first quantile itself is just below the 30% mark. The median and third quantile are almost at the same level above 30% mark for HR   
+
+The Charged off cases and the Defaulted cases are increasing from AA to HR. The past due cases are also more for the lower credit grades as compared to the  higher credit grades   
+
+For the Owned Home category, there are more number of cases for the higher Credit Grades (AA, A, B and C) for as compared to the lower Credit Grades (D, E and HR) whereas, for the Rented Home category it is gradually increasing from AA to C and then gradually decreases from C to HR. Except for the Credit Grade AA and A there are more number of cases for Rented Home category as compared to Owned home category   
+
+Trades are more delinquent for Rented Home Borrowers as compared to the Own Home Borrowers   
+
+The Rented home borrowers have a better Debt to Income ratio than Own Home Borrowers   
+
+The Occupations "Other" and "Professional" have the most number of delinquent  trades.    
+
+Following are the other occupations that have more delinquencies   
+Accountant / CPA   
+Administrative Assistant   
+Analyst   
+Civil Service   
+Clerical   
+Computer Programmer   
+Construction   
+Executive   
+Retail Management   
+Sales - Commission   
+Sales - Retail   
+Teacher   
+Skilled Labour   
+
+Following occupations have comparitively less deliquencies   
+Car Dealer   
+Chemist   
+Dentist   
+Engineer - Chemical   
+Fireman   
+Flight Attendant   
+Homemaker   
+Investor   
+Judge   
+Landscaping   
+Military Officer   
+Nurse's Aide   
+Nurse(LPN)   
+Pharmacist   
+Pilot - Private / Commercial   
+Principal   
+Professor   
+Psychologist   
+Religious   
+All Student Categories   
+Teacher's Aide   
+Tradesman - Carpenter   
+Tradesman - Electrician   
+Tradesman - Plumber      
+
+Surprisingly Teacher and Civil Service professionals also have higher number of delinquencies   
+
+The correlation coefficient of Stated Monthly Income to Loan Amount is 0.208 which suggests that the correlation  is not meaningful. But, we see that the regression line is gradually increasing which is due to variation in the upper side of the Loan amount. The Loan amount for lower income group is more concentrated on the lower side of the regression line whereas for higher Income group the data is more dispersed and evenly distributed above and below the regression line. This might be because higher income group might be having Loan eligibility for higher amount whereas the eligibility for lower income group it might be less and the higher income group inspite being eligible for higher loan amounts many are applying for much less amount than their eligibility. Also, we see that certain loan amounts are more popular. The Loan amounts of 4000 and 5000 is more popular among low income groups. The loan amount of 10000 is popular among people having income above 2500. The loan amount of 15000 is popular among people having income above 4000. The loan amounts of 15000, 20000 and 25000 are more popular than other amounts among people having income above 10000    
+
+The correlation coefficient of Stated Monthly Income to Debt to Income Ratio is - 0.127 which suggests that the correlation is not meaningful. The average Debt to Income Ratio is high for lower income group and gradually decreases for higher income group   
+
+The correlation coefficient of Debt To Income Ratio and Loan amount is 0.027 which suggests that the correlation is not meaningful. The average Debt To Income Ratio across all Loan amounts is almost same at around 0.25.    
+
+The correlation coefficient of Debt to Income ratio and Lender Yield is 0.054 which suggests that the correlation is not meaningful. The average Debt to Income ratio for lower Lender Yield is low and is gradually increasing for higher Lender Yield   
+
+The correlation coefficient of Trades Never Delinquent percentage and Debt to Income Ratio is 0.050 which suggests that the correlation is not meaningful. The average Debt to Income Ratio is low for lower Trades Never Delinquent Percentage and is gradually increasing for higher Trades Never Delinquent Percentage. The Debt to Income Ratio is more dispersed for higher values of Trades Never Delinquent percentage and the 2 extremes are more wider for its higher values and is narrower for its lower values. There are more data points for higher values of Trades Never Delinquent percentage as compared to the lower values   
+
+The correlation coefficient of Stated Monthly Income and Lender Yield is 0.107 which suggests that the correlation is not meaningful. The average Lender Yield is high for lower values of Monthly Income and is gradually decreasing for higher values   
+
+The correlation coefficient of Stated Monthly Income and Trades Never Delinquent percentage is 0.061 which suggests that the correlation is not meaningful. The  average Trades Never Delinquent percentage is low for lower income group and  gradually increases for higher income group   
+
+The correlation coefficient of Borrower Rate and Lender Yield is 0.999 which suggests that the correlation is very Strong. The Lender Yield  increases proportionally with increase in Borrower Rate
+
+The correlation coefficient of Loan Amount and Lender Yield is -0.346 which suggests that the correlation is weak. The average Lender Yield decreases when the Loan Amount increases.
+
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+
+Surprisingly the 2 professions Teacher and Civil Service professionals who ideally one would feel won't have delinquencies have higher number of delinquencies
+
+The Loan amounts of 4000 and 5000 is more popular among low income groups. The loan amount of 10000 is popular among people having income above 2500. The loan amount of 15000 is popular among people having income above 4000. The loan amounts of 15000, 20000 and 25000 are more popular than other amounts among  people having income above 10000 
+
+
+### What was the strongest relationship you found?
+
+The Lender Yield and Borrower Rate are very strongly correlated and the correlation is positive. The correlation coefficient being 0.999   
+
+This is as expected because if the Borrower is borrowing at a higher rate then the Yield will be higher.
+
+# Multivariate Plots Section
+
+```{r echo=FALSE, Multivariate_Plots}
+# Analyzing the Closed Loans for different loan status and Term across 
+# Credit Grades using Facet Grid
+
+ggplot(data=subset(pldca,!is.na(pldca$ClosedDate)),aes(x=CreditGrade_Derived))+
+  geom_histogram()+
+  theme(axis.text.x = element_text(face="bold",  
+                           size=8),
+          axis.text.y = element_text(face="bold",  
+                           size=10))+
+  facet_grid(~Term~LoanStatus)
+
+```
+
+We are considering only the Closed Loans for this analysis.   
+We see that the most popular loan term is 36 months. This is quite reasonable as 12 months would be too aggressive and for 60 months more money will go into paying Interest. We see that the charged off cases and the Defaulted cases is high for the lower credit grades as compared to the higher credit grades across all terms 
+
+```{r echo=FALSE, ClosedLoan_CreditGrade_HomeOwnership_Loanstatus}
+
+# Analyzing the Closed Loans for different loan status and HomeOwnership across 
+# Credit Grades using Facet Grid
+
+ggplot(data=subset(pldca,!is.na(pldca$ClosedDate)),aes(x=CreditGrade_Derived))+
+  geom_histogram()+
+  theme(axis.text.x = element_text(face="bold",  
+                           size=8),
+          axis.text.y = element_text(face="bold",  
+                           size=10))+
+  facet_grid(~HomeOwnership~LoanStatus)
+
+```
+
+We are considering only the Closed Loans for this analysis.   
+We see that the charged off and defaulted cases for Own Home borrowers is more as compared to the Rented Home borrowers for higher Credit ratings. For lower credit ratings the charged off and defaulted cases are more for Rented Home borrowers as compared to Own Home borrowers. For the Own Home borrowers the completed Loan cases are high for higher credit ratings and gradually decreases for lower credit ratings. For Rented Home borrowers the number of completed Loan  cases have an approximate normal distribution with higher ratings having lower number of cases and gradually increasing and peaking for credit rating of 'D' and then again decreasing for lower credit ratings
+
+```{r echo=FALSE, ClosedLoan_CreditGrade_HomeOwnership_PrincipalLossPctg}
+
+ggplot(data=subset(pldca,CreditGrade_Derived != 'NA' 
+                   & CreditGrade_Derived != 'NC' 
+                   & (LP_GrossPrincipalLoss / LoanOriginalAmount) * 100 > 0 ),
+       aes(x=(LP_GrossPrincipalLoss /LoanOriginalAmount)*100))+
+  geom_histogram(binwidth=1,aes(fill=CreditGrade_Derived))+
+  scale_x_discrete(limits=c(0,100),breaks=seq(0,100,10)) +
+  xlab("Gross Principal Loss Percentage") +
+  facet_grid(~HomeOwnership~CreditGrade_Derived)
+
+```
+
+We are considering only cases where the Principal Loss Percentage > 0 for this analysis. For Own Home borrowers we see that Principal Loss percentage is almost uniform across all Credit ratings. Credit grade B has more cases than the other cases followed by C then D then A then HR then AA and then E. For Rented Home borrowers we see that Principal Loss percentage gradually increases from higher ratings to Lower ratings with D and E having almost same number of cases. Comparing the Own Home borrowers to Rented Home borrowers we see that for higher credit ratings of AA, A and B Own Home borrowers have more cases as compared to the Rented Home borrowers. For Credit rating C both Own Home and Rented Home borrowers have almost same number of cases. For lower credit ratings of D, E and HR Rented Home borrowers far exceeds in number as compared to Own Home borrowers. We also see that there are many cases for Rented Home borrowers with credit rating D, E and HR where the Loss Percentage is almost 100% 
+
+```{r echo=FALSE, Summarize_using_dplyr}
+
+# Summarizing the Loan Original Amount by grouping on Credit Grade and
+# HomeOwnership
+
+pldca.loan_orig_amt_by_credit_rating_home_ownrshp <- pldca%>%
+  filter(CreditGrade_Derived != 'NA' & CreditGrade_Derived != 'NC')%>%  
+  group_by(CreditGrade_Derived,HomeOwnership)%>%
+  summarise(mean_loan_amt=mean(LoanOriginalAmount),
+          median_loan_amt=median(as.numeric(LoanOriginalAmount)),
+          n=n())%>%
+  ungroup()%>%
+  arrange(CreditGrade_Derived,HomeOwnership)
+summary(pldca.loan_orig_amt_by_credit_rating_home_ownrshp$mean_loan_amt)
+
+# Saving the plot of Loan Original Amount by Credit Grade and HomeOwnership
+# to a variable p1
+
+p1 <- ggplot(data=pldca.loan_orig_amt_by_credit_rating_home_ownrshp,
+       aes(x=CreditGrade_Derived,y=mean_loan_amt))+
+  xlab("Credit Grade")+
+  ylab("Loan Amount")+
+  scale_y_continuous(limits=c(0,15000),breaks= seq(0,15000,1000))+
+  theme(legend.justification=c(0,0), legend.position=c(0,0),
+        legend.background = element_rect(fill="transparent"),
+        legend.text = element_text(size = 8, face = "bold"),
+        legend.title = element_text(size=8, face="bold"))+
+  geom_line(aes(colour=HomeOwnership, group = HomeOwnership))
+
+# Summarizing the LenderYield by grouping on Credit Grade and 
+# HomeOwnership
+
+pldca.lender_Yield_by_credit_rating_home_ownrshp <- pldca%>%
+  filter(CreditGrade_Derived != 'NA' & CreditGrade_Derived != 'NC')%>%  
+  group_by(CreditGrade_Derived,HomeOwnership)%>%
+  summarise(mean_lender_Yield=mean(LenderYield),
+          median_lender_Yield=median(LenderYield),
+          n=n())%>%
+  ungroup()%>%
+  arrange(CreditGrade_Derived,HomeOwnership)
+summary(pldca.lender_Yield_by_credit_rating_home_ownrshp$mean_lender_Yield)
+
+# Saving the plot of LenderYield by Credit Grade and HomeOwnership
+# to a variable p2
+
+p2 <- ggplot(data=pldca.lender_Yield_by_credit_rating_home_ownrshp,
+       aes(x=CreditGrade_Derived,y=mean_lender_Yield))+
+  xlab("Credit Grade")+
+  ylab("Lender Yield")+
+  scale_y_continuous(limits=c(0,0.35),breaks= seq(0,0.35,0.05))+
+  theme(legend.justification=c(1,0), legend.position=c(1,0),
+        legend.background = element_rect(fill="transparent"),
+        legend.text = element_text(size = 8, face = "bold"),
+        legend.title = element_text(size=8, face="bold"))+
+  geom_line(aes(colour=HomeOwnership, group = HomeOwnership))
+
+# Summarizing the Trades Never Delinquent Percentage by grouping on 
+# Credit Grade and HomeOwnership
+
+pldca.trdsneverdelinquent_pctg_by_credit_rating_home_ownrshp <- pldca%>%
+  filter(CreditGrade_Derived != 'NA' & CreditGrade_Derived != 'NC' 
+         & TradesNeverDelinquent_percentage != 'NA')%>%  
+  group_by(CreditGrade_Derived,HomeOwnership)%>%
+  summarise(mean_trdsneverdelinquent_pctg=
+              mean(TradesNeverDelinquent_percentage),
+          median_trdsneverdelinquent_pctg=
+            median(TradesNeverDelinquent_percentage),
+          n=n())%>%
+  ungroup()%>%
+  arrange(CreditGrade_Derived,HomeOwnership)
+summary(pldca.trdsneverdelinquent_pctg_by_credit_rating_home_ownrshp$mean_trdsneverdelinquent_pctg)
+
+# Saving the plot of Trades Never Delinquent Percentage by Credit Grade and 
+# HomeOwnership to a variable p3
+
+p3 <- ggplot(data=pldca.trdsneverdelinquent_pctg_by_credit_rating_home_ownrshp,
+       aes(x=CreditGrade_Derived,y=mean_trdsneverdelinquent_pctg))+
+  xlab("Credit Grade")+
+  ylab("Percentage of Trades never Deliquent")+
+  scale_y_continuous(limits=c(0,1),breaks= seq(0,1,0.1))+
+  theme(legend.justification=c(0,0), legend.position=c(0,0),
+        legend.background = element_rect(fill="transparent"),
+        legend.text = element_text(size = 8, face = "bold"),
+        legend.title = element_text(size=8, face="bold"))+
+  geom_line(aes(colour=HomeOwnership, group = HomeOwnership))
+
+# Summarizing the Principal Loss Percentage by grouping on 
+# Credit Grade and HomeOwnership
+
+pldca.principal_loss_pctg_by_credit_rating_home_ownrshp <- pldca%>%
+  filter(CreditGrade_Derived != 'NA' & CreditGrade_Derived != 'NC')%>%  
+  group_by(CreditGrade_Derived,HomeOwnership)%>%
+  summarise(mean_principal_loss_pctg=
+              mean((LP_GrossPrincipalLoss / LoanOriginalAmount) * 100),
+          median_principal_loss_pctg=
+            median((LP_GrossPrincipalLoss / LoanOriginalAmount) * 100),
+          n=n())%>%
+  ungroup()%>%
+  arrange(CreditGrade_Derived,HomeOwnership)
+
+summary(pldca.principal_loss_pctg_by_credit_rating_home_ownrshp$mean_principal_loss_pctg)
+
+# Saving the plot of Principal Loss Percentage by Credit Grade and 
+# HomeOwnership to a variable p4
+
+p4 <- ggplot(data=pldca.principal_loss_pctg_by_credit_rating_home_ownrshp,
+       aes(x=CreditGrade_Derived,y=mean_principal_loss_pctg))+
+  xlab("Credit Grade")+
+  ylab("Gross Principal Loss Percentage")+
+  scale_y_continuous(limits=c(0,100),breaks= seq(0,100,10))+
+  theme(legend.justification=c(0,1), legend.position=c(0,1),
+        legend.background = element_rect(fill="transparent"),
+        legend.text = element_text(size = 8, face = "bold"),
+        legend.title = element_text(size=8, face="bold"))+
+  geom_line(aes(colour=HomeOwnership, group = HomeOwnership))
+
+# Display the plots p1, p2, p3 and p4 as a single plot in a grid
+
+grid.arrange(p1,p2,p3,p4)
+
+```
+
+We have ignored the Credit Grades 'NA' and 'NC' from our plot
+
+The plot of Loan amount and Credit Grade shows that across all credit grades the Owned Home borrowers have a slightly higher Loan amount as compared to the Rented Home borrowers. For Grades A, B and C this difference is higher than the other Credit grades. The loan amount for higher Credit gradess is higher and decreases for lower Credit grades. There is a gradual decrease from B to HR   
+
+The plot of Lender Yield and Credit Grade shows that across all credit grades the Owned Home borrowers and the Rented Home borrowers have similar Lender Yield The Owned Home line is slightly above the Rented Home line which shows that  Lender Yield is slightly better for Owned Home borrowers as compared to Rented  Home borrowers. The Lender Yield is gradually increasing from AA to HR with AA having the least Lender Yield and HR having the most Lender Yield     
+
+The plot of Trades never Delinquent and Credit Grade shows that for higher credit grades (AA and A) both Owned Home borrowers and Rented Home borrowers have almost same Delinquency Percentage. For lower credit grades (B to HR) the difference widens with Owned Home borrowers having a slightly lower delinquency as compared to the Rented Home borrowers. The Trade delinquency increases as the  credit grade decreases from AA to HR   
+
+The plot of Gross Principal Loss Percentage and Credit Grade shows that for higher credit grades (AA, A, B and C) Rented Home borrowers have lower Principal Loss percentage as compared to Owned Home borrowers. The 2 lines cross each other at D. For lower credit grades (E and HR) Owned Home borrowers have lower Principal Loss Percentage as compared to Rented Home borrowers. The Gross Principal Loss Percentage increases from higher credit grade to lower credit grade fram AA to HR.
+
+```{r echo=FALSE, dataset_wide_format}
+
+# Create new datasets in wide format from the summarized Datasets created for
+# the earlier plot
+
+# Create a new dataset in wide format from the dataset
+# pldca.loan_orig_amt_by_credit_rating_home_ownrshp
+
+pldca.loan_orig_amt_by_credit_rating_home_ownrshp.wide <-
+  dcast(pldca.loan_orig_amt_by_credit_rating_home_ownrshp,
+        CreditGrade_Derived~HomeOwnership,
+        value.var='mean_loan_amt')
+
+# Saving the plot of Loan Amount by Credit Grade and Own to Rented Home ratio 
+# to a variable p5
+
+p5 <- ggplot(data=pldca.loan_orig_amt_by_credit_rating_home_ownrshp.wide,
+       aes(x=CreditGrade_Derived,y=OwnHome / RentedHome,group=1))+
+  geom_line()+
+  ggtitle("Loan Amount by Credit Rating 
+          and Own to Rented Home Ratio")+
+  xlab("Credit Rating")+
+  ylab("Own Home to \n Rented Home Ratio")+
+  theme(plot.title = element_text(size = 9,colour="blue"))+
+  geom_hline(yintercept=1,alpha=0.5,linetype=2,colour='blue')
+
+# Create a new dataset in wide format from the dataset
+# pldca.lender_Yield_by_credit_rating_home_ownrshp
+
+pldca.lender_Yield_by_credit_rating_home_ownrshp.wide <-
+  dcast(pldca.lender_Yield_by_credit_rating_home_ownrshp,
+        CreditGrade_Derived~HomeOwnership,
+        value.var='mean_lender_Yield')
+
+# Saving the plot of Lender Yield by Credit Grade and Own to Rented Home ratio 
+# to a variable p6
+
+p6 <- ggplot(data=pldca.lender_Yield_by_credit_rating_home_ownrshp.wide,
+       aes(x=CreditGrade_Derived,y=OwnHome / RentedHome,group=1))+
+  geom_line()+
+  ggtitle("Lender Yield by Credit Rating 
+          and Own to Rented Home Ratio")+
+  xlab("Credit Rating")+
+  ylab("Own Home to \n Rented Home Ratio")+
+  theme(plot.title = element_text(size = 9,colour="blue"))+
+  geom_hline(yintercept=1,alpha=0.5,linetype=2,colour='blue')
+
+# Create a new dataset in wide format from the dataset
+# pldca.trdsneverdelinquent_pctg_by_credit_rating_home_ownrshp
+
+pldca.trdsneverdelinquent_pctg_by_credit_rating_home_ownrshp.wide <-
+  dcast(pldca.trdsneverdelinquent_pctg_by_credit_rating_home_ownrshp,
+        CreditGrade_Derived~HomeOwnership,
+        value.var='mean_trdsneverdelinquent_pctg')
+
+# Saving the plot of Trades Never delinquent Percentage by Credit Grade and Own 
+# to Rented Home ratio to a variable p7
+
+p7 <- ggplot(data=pldca.trdsneverdelinquent_pctg_by_credit_rating_home_ownrshp.wide,
+       aes(x=CreditGrade_Derived,y=OwnHome / RentedHome,group=1))+
+  geom_line()+
+  ggtitle("Trades Never Delinquent Pctg by Credit Rating 
+          and Own to Rented Home Ratio")+
+  xlab("Credit Rating")+
+  ylab("Own Home to \n Rented Home Ratio")+
+  theme(plot.title = element_text(size = 9,colour="blue"))+
+  geom_hline(yintercept=1,alpha=0.5,linetype=2,colour='blue')
+
+# Create a new dataset in wide format from the dataset
+# pldca.principal_loss_pctg_by_credit_rating_home_ownrshp
+
+pldca.principal_loss_pctg_by_credit_rating_home_ownrshp.wide <-
+  dcast(pldca.principal_loss_pctg_by_credit_rating_home_ownrshp,
+        CreditGrade_Derived~HomeOwnership,
+        value.var='mean_principal_loss_pctg')
+
+# Saving the plot of Principal Loss Percentage by Credit Grade and Own 
+# to Rented Home ratio to a variable p8
+
+p8 <- ggplot(data=pldca.principal_loss_pctg_by_credit_rating_home_ownrshp.wide,
+       aes(x=CreditGrade_Derived,y=OwnHome / RentedHome,group=1))+
+  geom_line()+
+  ggtitle("Principal Loss Pctg by Credit Rating 
+          and Own to Rented Home Ratio")+
+  xlab("Credit Rating")+
+  ylab("Own Home to \n Rented Home Ratio")+
+  theme(plot.title = element_text(size = 9,colour="blue"))+
+  geom_hline(yintercept=1,alpha=0.5,linetype=2,colour='blue')
+
+# Display the plots p5, p6, p7 and p8 as a single plot in a grid
+
+grid.arrange(p5,p6,p7,p8)
+
+```
+
+The plot of Loan amount and Credit Rating shows that across all credit ratings the Owned Home to Rented Home borrowers ratio is greater than 1. This means that Owned Home borrowers are receiving higher Loan amount than the Rented Home borrowers across all credit ratings. The ratio gradually increases from Credit rating AA to Credit rating B and then decreases from B to HR    
+
+The plot of Lender Yield and Credit Rating shows that across all credit grades the Owned Home to Rented Home borrowers ratio is greater than 1. This means that the Lender Yield is slightly more for Owned Home borrowers than the Rented Home borrowers. The ratio has a zig zag path which decreases from AA to A then increases slightly from A to B then again decreases from B TO C then again increases from C to D then again decreases from D to E and increases from E to HR    
+
+The plot of Trades never Delinquent Percentage and Credit Rating shows that for Credit Rating AA the ratio for Owned Home to Rented Home borrower ratio  is 1 which means Trades never Delinquent percentage is almost same for Credit Rating AA. The ratio increases gradually from Credit Rating AA to HR. The Trades never Delinquent percentage is slightly better for Owned Home borrowers as compared to Rented Home borrowers for Credit Rating A to HR
+
+The plot of Principal Loss Percentage and Credit Rating shows that for higher credit grades (AA, A, B and C) Owned Home borrowers have higher Principal Loss percentage as compared to Rented Home borrowers. For the Credit Rating 'D' the Principal Loss Percentage is almost same for Owned Home borrowers and Rented Home borrowers. For lower credit grades (E and HR) the Owned Home borrowers have lower Principal Loss Percentage as compared to Rented Home borrowers
+
+# Multivariate Analysis
+
+
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+
+The Most Popular Loan term is 36 months for all closed loans across all credit grades. Also, the charged off cases and the Defaulted cases is high for the lower credit grades as compared to the higher credit grades across all Loan terms
+
+The charged off and defaulted cases for Own Home borrowers is more as compared to the Rented Home borrowers for higher Credit ratings. For lower credit ratings the charged off and defaulted cases are more for Rented Home borrowers as compared to Own Home borrowers. For the Own Home borrowers the completed Loan cases are high for higher credit ratings and gradually decreases for lower credit ratings. For Rented Home borrowers the number of completed Loan  cases have an approximate normal distribution with higher ratings having lower number of cases and gradually increasing and peaking for credit rating of 'D' and then again decreasing for lower credit ratings    
+
+For Own Home borrowers we see that number of cases with Principal Loss percentage is almost uniform across all Credit ratings. For Rented Home borrowers we see that number of cases with Principal Loss percentage gradually increases from higher ratings to Lower ratings   
+
+The Owned Home borrowers are receiving higher Loan amount than the Rented Home borrowers across all credit ratings. The loan amount for higher Credit grades is higher and decreases for lower Credit grades   
+
+The Lender Yield is slightly higher for Owned Home borrowers than the Rented Home borrowers. The Lender Yield is gradually increasing from higher to lower credit grades   
+
+The Trade delinquency increases as the credit grade decreases for both Owned and Rented Home borrowers. The Trade Delinquency is slightly lesser for Owned Home borrowers as compared to Rented Home borrowers for all Credit Grades except AA for which the Trade Delinquency is almost the same for both groups   
+
+The Principal Loss is gradually increasing from Higher to Lower Credit Grades for both Owned and Rented Home borrowers. For higher credit grades (AA, A, B and C) Owned Home borrowers have higher Principal Loss as compared to Rented Home borrowers. For the Credit Rating 'D' the Principal Loss is almost same for Owned and Rented Home borrowers. For lower credit grades (E and HR) the Owned Home borrowers have lower Principal Loss Percentage as compared to Rented Home borrowers
+
+
+### Were there any interesting or surprising interactions between features?
+
+As expected the Loan Amount is high for higher Credit Grades and low for lower  Credit Grades. We also see that Owned Home borrowers are borrowing slightly higher amounts as compared to the Rented Home borrowers    
+
+The Lender Yield is low for higher Credit Grades and high for lower Credit  Grades. This shows that there is a risk reward tradeoff while granting the loan. The riskier investment (lower Credit Grades) is fetching higher Lender Yield and the safer investment (higher Credit Grades) is fetching lower Lender Yield   
+
+The charged off and defaulted cases for Own Home borrowers is more as compared to the Rented Home borrowers for higher Credit ratings. For lower credit ratings the charged off and defaulted cases are more for Rented Home borrowers as compared to Own Home borrowers    
+
+Though there are more number of cases with Gross Principal Loss Percentage for E and HR Category for the Rented Home borrowers as compared to Owned Home borrowers, the average Gross Principal Loss percentage is higher for the E and  HR category for the Owned Home borrowers as compared to the Rented Home borrowers
+
+
+### OPTIONAL: Did you create any models with your dataset? Discuss the strengths and limitations of your model.
+
+------
+
+# Final Plots and Summary
+
+### Plot One
+```{r echo=FALSE, Plot_One}
+
+ggplot(data=pldca,aes(x=Occupation,y=TradesNeverDelinquent_percentage))+
+  geom_point(alpha=0.05,colour='blue')+
+  ylab("Percentage of Trades never Deliquent")+
+  theme(axis.text.x = element_text(face="bold",  
+                           size=8, angle=90),
+          axis.text.y = element_text(face="bold",  
+                           size=10))
+
+```
+
+### Description One
+
+We are analyzing the Trade Deliquencies across different Occupations in this plot   
+
+The Occupations "Other" and "Professional" have the most number of delinquent trades
+
+Following are the other occupations that have more delinquencies   
+Accountant / CPA   
+Administrative Assistant   
+Analyst   
+Civil Service   
+Clerical   
+Computer Programmer   
+Construction   
+Executive   
+Retail Management   
+Sales - Commission   
+Sales - Retail   
+Teacher   
+Skilled Labour   
+
+Following occupations have comparitively less deliquencies   
+Car Dealer   
+Chemist   
+Dentist   
+Engineer - Chemical   
+Fireman   
+Flight Attendant   
+Homemaker   
+Investor   
+Judge   
+Landscaping   
+Military Officer   
+Nurse's Aide   
+Nurse(LPN)   
+Pharmacist   
+Pilot - Private / Commercial   
+Principal   
+Professor   
+Psychologist   
+Religious   
+All Student Categories   
+Teacher's Aide   
+Tradesman - Carpenter   
+Tradesman - Electrician   
+Tradesman - Plumber   
+
+Surprisingly Teacher and Civil Service professionals also have higher number of delinquencies
+
+### Plot Two
+```{r echo=FALSE, Plot_Two}
+
+ggplot(data=subset(pldca,CreditGrade_Derived != 'NA' 
+                   & CreditGrade_Derived != 'NC' 
+                   & (LP_GrossPrincipalLoss / LoanOriginalAmount) * 100 > 0 ),
+       aes(x=(LP_GrossPrincipalLoss /LoanOriginalAmount)*100))+
+  geom_histogram(binwidth=1,aes(fill=CreditGrade_Derived))+
+  scale_x_discrete(limits=c(0,100),breaks=seq(0,100,10)) +
+  xlab("Gross Principal Loss Percentage") +
+  facet_grid(~HomeOwnership~CreditGrade_Derived)
+
+
+```
+
+### Description Two
+
+We are analyzing the Gross Principal Loss Percentage for different Credit Grades  and Owned and Rented Home Categories   
+
+For Own Home borrowers we see that Principal Loss percentage is almost uniform  across all Credit ratings. Credit grade B has more cases than the other cases followed by C then D then A then HR then AA and then E. For Rented Home borrowers we see that Principal Loss percentage gradually increases from higher ratings to Lower ratings with D and E having almost same number of cases. Comparing the Own Home borrowers to Rented Home borrowers we see that for higher  credit ratings of AA, A and B Own Home borrowers have more cases as compared to the Rented Home borrowers. For Credit rating C both Own Home and Rented Home  borrowers have almost same number of cases. For lower credit ratings of D, E and  HR Rented Home borrowers far exceeds in number as compared to Own Home borrowers. We also see that there are many cases for Rented Home borrowers with credit rating D, E and HR where the Loss Percentage is almost 100%
+
+### Plot Three
+```{r echo=FALSE, Plot_Three}
+grid.arrange(p1,p2,p3,p4)
+```
+### Description Three
+
+We are comparing the Loan Amount, Lender Yield, Trade Delinquencies and Principal Loss percentage between Owned and Rented Home borrowers for different Credit Grades   
+
+The plot of Loan amount and Credit Grade shows that across all credit grades the Owned Home borrowers have a slightly higher Loan amount as compared to the Rented Home borrowers. For Grades A, B and C this difference is higher than the other Credit grades. The loan amount for higher Credit gradess is higher and decreases for lower Credit grades. There is a gradual decrease from B to HR   
+
+The plot of Lender Yield and Credit Grade shows that across all credit grades the Owned Home borrowers and the Rented Home borrowers have similar Lender Yield The Owned Home line is slightly above the Rented Home line which shows that  Lender Yield is slightly better for Owned Home borrowers as compared to Rented  Home borrowers. The Lender Yield is gradually increasing from AA to HR with AA having the least Lender Yield and HR having the most Lender Yield. 
+
+The plot of Trades never Delinquent and Credit Grade shows that for higher credit grades (AA and A) both Owned Home borrowers and Rented Home borrowers have almost same Delinquency Percentage. For lower credit grades (B to HR) the difference widens with Owned Home borrowers having a slightly lower delinquency as compared to the Rented Home borrowers. The Trade delinquency increases as the credit grade decreases from AA to HR
+
+The plot of Gross Principal Loss Percentage and Credit Grade shows that for higher credit grades (AA, A, B and C) Rented Home borrowers have lower Principal Loss percentage as compared to Owned Home borrowers. The 2 lines cross each other at D. For lower credit grades (E and HR) Owned Home borrowers have lower Principal Loss Percentage as compared to Rented Home borrowers. The Gross Principal Loss Percentage increases from higher credit grade to lower credit grade fram AA to HR
+
+------
+
+# Reflection
+
+The Prosper Loan data set contains information on 113937 loan records. I focussed on the State of California for doing the Exploratory analysis as it has 14717 records (almost 1/10th of the total loan records). I started by going through the Prosper website to understand the concept and details of some of the  fields in the data set. Then I started understanding the individual variables in the data set, and then I explored interesting questions and leads as I continued to make observations on plots   
+
+Following are some of the interesting features which I observed during the exploratory analysis   
+
+There are certain occupations which have more Trade Delinquencies as compared to others. Most surprising being Teacher and Civil Service professionals having higher number of Trade delinquencies. Some of the professions having lower Trade delinquencies also have lower number of loan records in the data set. So may be the number of Trade Delinquencies is high for certain professions because the number of loan records are high for those professions in the database and low for some professions because they have less number of loan records in the data set   
+
+There are 3 loan terms 12, 36 and 60 months. The most popular loan term is 36 months   
+
+There are about 33% more Rented Home borrowers as compared to Owned Home borrowers in the data set   
+
+The Borrower rate of Interest and Lender Yield is low for higher Credit Grades and high for lower Credit Grades. The median gradually increases from higher Credit Grade (AA) to lower Credit Grade (HR)   
+
+The Owned Home borrowers seem to be receiving higher Loan amount than the Rented Home borrowers across all credit ratings. The loan amount for higher Credit grades is higher and decreases for lower Credit grades   
+
+The Lender Yield seems to be slightly higher for Owned Home borrowers than the Rented Home borrowers. The Lender Yield is gradually increasing from higher to lower credit grades   
+
+The Trade delinquency increases as the credit grade decreases for both Owned and Rented Home borrowers. The Trade Delinquency is slightly lesser for Owned Home borrowers as compared to Rented Home borrowers for all Credit Grades except AA for which the Trade Delinquency is almost the same for both groups   
+
+The Principal Loss is gradually increasing from Higher to Lower Credit Grades for both Owned and Rented Home borrowers. For higher credit grades (AA, A, B and C) Owned Home borrowers have higher Principal Loss as compared to Rented Home borrowers. For the Credit Rating 'D' the Principal Loss is almost same for Owned and Rented Home borrowers. For lower credit grades (E and HR) the Owned Home borrowers have lower Principal Loss Percentage as compared to Rented Home borrowers   
+
+There are a few records (5-10 % records) which does not have values for Principal Loss and Trade delinquency and hence have not got considered in our plot. This might not be having an impact on our analysis assuming these records also will have similar values as the rest (90-95 %) of the loan records
